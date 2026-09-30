@@ -1,65 +1,27 @@
+
 const video = document.getElementById("video");
+
 const gifVideo = document.createElement("video");
 
+let canvas = null;
 
-// ============================================================
-// VARIABLES
-// ============================================================
+let ctx = null;
 
 let deteccionIniciada = false;
 
 
 // ============================================================
-// CARGAR MODELOS DE FACE-API
-// ============================================================
-
-Promise.all([
-    faceapi.nets.tinyFaceDetector.loadFromUri("./models"),
-    faceapi.nets.faceLandmark68TinyNet.loadFromUri("./models")
-])
-.then(() => {
-
-    console.log("=================================");
-    console.log("MODELOS CARGADOS CORRECTAMENTE");
-    console.log("=================================");
-
-    console.log(
-        "Tiny Face Detector:",
-        faceapi.nets.tinyFaceDetector.isLoaded
-    );
-
-    console.log(
-        "Face Landmark 68 Tiny:",
-        faceapi.nets.faceLandmark68TinyNet.isLoaded
-    );
-
-    console.log(
-        "Face Landmark 68 normal:",
-        faceapi.nets.faceLandmark68Net.isLoaded
-    );
-
-    startWebcam();
-
-})
-.catch(err => {
-
-    console.error(
-        "ERROR CARGANDO LOS MODELOS:",
-        err
-    );
-
-});
-
-
-// ============================================================
-// VÍDEO DE LA GRULLA
+// CONFIGURACIÓN DEL VÍDEO DE LA GRULLA
 // ============================================================
 
 gifVideo.src = "animación_transparente.webm";
 
 gifVideo.loop = true;
+
 gifVideo.muted = true;
+
 gifVideo.autoplay = true;
+
 gifVideo.playsInline = true;
 
 gifVideo.style.display = "none";
@@ -93,10 +55,10 @@ gifVideo.addEventListener("loadeddata", () => {
 // ERROR DEL VÍDEO
 // ============================================================
 
-gifVideo.addEventListener("error", (error) => {
+gifVideo.addEventListener("error", error => {
 
     console.error(
-        "Error loading GIF video:",
+        "Error loading animation video:",
         error
     );
 
@@ -104,71 +66,205 @@ gifVideo.addEventListener("error", (error) => {
 
 
 // ============================================================
-// INICIAR WEBCAM
+// CARGAR FACE-API
 // ============================================================
 
-function startWebcam() {
+async function cargarFaceAPI() {
 
-    navigator.mediaDevices.getUserMedia({
-        video: {}
-    })
+    try {
 
-    .then(stream => {
+        console.log("=================================");
+        console.log("INICIANDO CARGA DE FACE-API");
+        console.log("=================================");
 
-        video.srcObject = stream;
+
+        // ----------------------------------------------------
+        // TINY FACE DETECTOR
+        // ----------------------------------------------------
 
         console.log(
-            "Webcam iniciada correctamente."
+            "1. Cargando Tiny Face Detector..."
         );
 
-    })
+        await faceapi.nets.tinyFaceDetector.loadFromUri(
+            "./models"
+        );
 
-    .catch(error => {
+
+        console.log(
+            "2. Tiny Face Detector OK"
+        );
+
+
+        console.log(
+            "Modelo cargado:",
+            faceapi.nets.tinyFaceDetector.isLoaded
+        );
+
+
+        // ----------------------------------------------------
+        // IMPORTANTE
+        // ----------------------------------------------------
+        //
+        // NO cargamos:
+        //
+        // faceLandmark68Net
+        //
+        // NO cargamos:
+        //
+        // faceLandmark68TinyNet
+        //
+        // NO utilizamos:
+        //
+        // withFaceLandmarks()
+        //
+        // La aplicación solo necesita detectar la caja
+        // del rostro para colocar la grulla.
+        //
+        // ----------------------------------------------------
+
+
+        console.log(
+            "3. No se utilizará FaceLandmark68Net."
+        );
+
+
+        console.log(
+            "4. No se utilizará FaceLandmark68TinyNet."
+        );
+
+
+        console.log("=================================");
+        console.log("FACE-API CARGADO CORRECTAMENTE");
+        console.log("=================================");
+
+
+        // ----------------------------------------------------
+        // INICIAR WEBCAM
+        // ----------------------------------------------------
+
+        iniciarWebcam();
+
+
+    } catch (error) {
 
         console.error(
-            "Error accessing webcam:",
+            "ERROR CARGANDO FACE-API:",
             error
         );
 
-    });
+    }
 
 }
 
 
 // ============================================================
-// CUANDO LA WEBCAM EMPIEZA A REPRODUCIR
+// INICIAR WEBCAM
+// ============================================================
+
+async function iniciarWebcam() {
+
+    try {
+
+        console.log(
+            "Solicitando acceso a la webcam..."
+        );
+
+
+        const stream =
+            await navigator.mediaDevices.getUserMedia({
+
+                video: {
+                    facingMode: "user"
+                },
+
+                audio: false
+
+            });
+
+
+        video.srcObject = stream;
+
+
+        console.log(
+            "Webcam iniciada correctamente."
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "ERROR ACCEDIENDO A LA WEBCAM:",
+            error
+        );
+
+    }
+
+}
+
+
+// ============================================================
+// CUANDO EL VÍDEO DE LA WEBCAM COMIENZA
 // ============================================================
 
 video.addEventListener("play", () => {
 
-    if (deteccionIniciada) {
-        return;
-    }
-
-    deteccionIniciada = true;
+    console.log(
+        "================================="
+    );
 
     console.log(
-        "Webcam lista. Iniciando detección facial..."
+        "WEBCAM LISTA"
     );
+
+    console.log(
+        "================================="
+    );
+
+
+    // Evitar iniciar dos detectores
+
+    if (deteccionIniciada) {
+
+        console.log(
+            "La detección ya estaba iniciada."
+        );
+
+        return;
+
+    }
+
+
+    deteccionIniciada = true;
 
 
     // ========================================================
     // CREAR CANVAS
     // ========================================================
 
-    const canvas =
+    canvas =
         faceapi.createCanvasFromMedia(video);
 
-    canvas.style.position = "absolute";
-    canvas.style.top = "0";
-    canvas.style.left = "0";
 
-    canvas.style.pointerEvents = "none";
+    canvas.style.position =
+        "absolute";
+
+    canvas.style.top =
+        "0px";
+
+    canvas.style.left =
+        "0px";
+
+    canvas.style.pointerEvents =
+        "none";
 
     canvas.style.backgroundColor =
         "transparent";
 
-    document.body.appendChild(canvas);
+
+    document.body.appendChild(
+        canvas
+    );
 
 
     // ========================================================
@@ -177,15 +273,29 @@ video.addEventListener("play", () => {
 
     const displaySize = {
 
-        width: video.width,
-        height: video.height
+        width:
+            video.videoWidth ||
+            video.width,
+
+        height:
+            video.videoHeight ||
+            video.height
 
     };
+
 
     faceapi.matchDimensions(
         canvas,
         displaySize
     );
+
+
+    // ========================================================
+    // CONTEXTO
+    // ========================================================
+
+    ctx =
+        canvas.getContext("2d");
 
 
     // ========================================================
@@ -195,7 +305,7 @@ video.addEventListener("play", () => {
     gifVideo.play().catch(error => {
 
         console.error(
-            "Error playing GIF video:",
+            "Error playing grulla:",
             error
         );
 
@@ -203,119 +313,146 @@ video.addEventListener("play", () => {
 
 
     // ========================================================
-    // BUCLE DE DETECCIÓN
+    // INICIAR DETECCIÓN
     // ========================================================
 
-    detectarRostro(
-        canvas,
-        displaySize
-    );
+    detectarRostro();
 
 });
 
 
 // ============================================================
-// DETECCIÓN FACIAL
+// DETECTAR ROSTRO
 // ============================================================
 
-async function detectarRostro(
-    canvas,
-    displaySize
-) {
+async function detectarRostro() {
 
     try {
 
-        // ----------------------------------------------------
-        // COMPROBAR QUE LOS MODELOS ESTÁN CARGADOS
-        // ----------------------------------------------------
+        // ====================================================
+        // COMPROBAR MODELO
+        // ====================================================
 
         if (
-            !faceapi.nets.tinyFaceDetector.isLoaded ||
-            !faceapi.nets.faceLandmark68TinyNet.isLoaded
+            !faceapi.nets.tinyFaceDetector.isLoaded
         ) {
 
             console.warn(
-                "Los modelos todavía no están cargados."
+                "Tiny Face Detector todavía no está cargado."
             );
 
-            requestAnimationFrame(() => {
 
-                detectarRostro(
-                    canvas,
-                    displaySize
-                );
+            setTimeout(
+                detectarRostro,
+                200
+            );
 
-            });
 
             return;
+
         }
 
 
-        // ----------------------------------------------------
-        // DETECTAR ROSTROS
-        // ----------------------------------------------------
+        // ====================================================
+        // DETECCIÓN
+        // ====================================================
+        //
+        // MUY IMPORTANTE:
+        //
+        // Aquí NO utilizamos:
+        //
+        // .withFaceLandmarks()
+        //
+        // Por tanto face-api NO necesita
+        // FaceLandmark68Net.
+        //
+        // ====================================================
 
-        const detections = await faceapi
-            .detectAllFaces(
+        const detections =
+            await faceapi.detectAllFaces(
+
                 video,
-                new faceapi.TinyFaceDetectorOptions()
-            )
 
-            // IMPORTANTE:
-            // true = utilizar FaceLandmark68TinyNet
-            // y NO FaceLandmark68Net
+                new faceapi.TinyFaceDetectorOptions({
 
-            .withFaceLandmarks(true);
+                    inputSize: 320,
 
+                    scoreThreshold: 0.5
 
-        // ----------------------------------------------------
-        // REDIMENSIONAR
-        // ----------------------------------------------------
+                })
 
-        const resized =
-            faceapi.resizeResults(
-                detections,
-                displaySize
             );
 
 
-        // ----------------------------------------------------
-        // CONTEXTO DEL CANVAS
-        // ----------------------------------------------------
+        // ====================================================
+        // DIMENSIONES ACTUALES
+        // ====================================================
 
-        const ctx =
-            canvas.getContext("2d");
+        const displaySize = {
+
+            width:
+                video.videoWidth ||
+                video.width,
+
+            height:
+                video.videoHeight ||
+                video.height
+
+        };
 
 
-        // ----------------------------------------------------
+        // ====================================================
+        // REDIMENSIONAR
+        // ====================================================
+
+        const resizedDetections =
+            faceapi.resizeResults(
+
+                detections,
+
+                displaySize
+
+            );
+
+
+        // ====================================================
         // LIMPIAR CANVAS
-        // ----------------------------------------------------
+        // ====================================================
 
         ctx.clearRect(
+
             0,
+
             0,
+
             canvas.width,
+
             canvas.height
+
         );
 
 
-        // ----------------------------------------------------
-        // SI HAY ROSTROS
-        // ----------------------------------------------------
+        // ====================================================
+        // DIBUJAR GRULLA
+        // ====================================================
 
-        if (resized.length > 0) {
+        if (
+            resizedDetections.length > 0
+        ) {
 
-            resized.forEach(result => {
+            resizedDetections.forEach(
+                detection => {
 
-                const landmarks =
-                    result.landmarks;
+                    dibujarGrulla(
 
-                drawGifOverlay(
-                    ctx,
-                    landmarks
-                );
+                        ctx,
 
-            });
+                        detection.box
+
+                    );
+
+                }
+            );
 
         }
 
@@ -323,7 +460,7 @@ async function detectarRostro(
     } catch (error) {
 
         console.error(
-            "Error durante la detección facial:",
+            "ERROR DURANTE LA DETECCIÓN:",
             error
         );
 
@@ -331,104 +468,115 @@ async function detectarRostro(
 
 
     // ========================================================
-    // REPETIR DETECCIÓN
+    // SIGUIENTE DETECCIÓN
     // ========================================================
 
-    setTimeout(() => {
+    setTimeout(
 
-        detectarRostro(
-            canvas,
-            displaySize
-        );
+        detectarRostro,
 
-    }, 100);
+        100
+
+    );
 
 }
 
 
 // ============================================================
-// DIBUJAR GRULLA SOBRE EL ROSTRO
+// DIBUJAR GRULLA
 // ============================================================
 
-function drawGifOverlay(
+function dibujarGrulla(
     ctx,
-    landmarks
+    box
 ) {
 
-    // --------------------------------------------------------
-    // MANDÍBULA
-    // --------------------------------------------------------
 
-    const jawline =
-        landmarks.getJawOutline();
+    // ========================================================
+    // CENTRO DEL ROSTRO
+    // ========================================================
 
-
-    const rightJawPoint =
-        jawline[jawline.length - 1];
+    const centroX =
+        box.x +
+        box.width / 2;
 
 
-    // --------------------------------------------------------
-    // DESPLAZAMIENTO DE LA GRULLA
-    // --------------------------------------------------------
+    const centroY =
+        box.y +
+        box.height / 2;
+
+
+    // ========================================================
+    // POSICIÓN DE LA GRULLA
+    // ========================================================
+
+    // Mover a la derecha
 
     const offsetX = 30;
+
+
+    // Mover hacia arriba
 
     const offsetY = -50;
 
 
     const animationX =
-        rightJawPoint.x + offsetX;
+        centroX +
+        offsetX;
 
 
     const animationY =
-        rightJawPoint.y + offsetY;
+        centroY +
+        offsetY;
 
 
-    // --------------------------------------------------------
-    // ANCHURA ENTRE CEJAS
-    // --------------------------------------------------------
-
-    const rightEyebrow =
-        landmarks.getRightEyeBrow();
-
-
-    const leftEyebrow =
-        landmarks.getLeftEyeBrow();
-
-
-    const width =
-        rightEyebrow[4].x -
-        leftEyebrow[0].x;
-
-
-    // --------------------------------------------------------
-    // TAMAÑO DE LA GRULLA
-    // --------------------------------------------------------
+    // ========================================================
+    // TAMAÑO
+    // ========================================================
 
     const size =
-        width * 1.5;
+        box.width *
+        1.5;
 
 
-    // --------------------------------------------------------
-    // DIBUJAR VÍDEO DE LA GRULLA
-    // --------------------------------------------------------
+    // ========================================================
+    // COMPROBAR VÍDEO
+    // ========================================================
 
-    if (gifVideo.readyState >= 2) {
+    if (
+        gifVideo.readyState < 2
+    ) {
 
-        ctx.drawImage(
-
-            gifVideo,
-
-            animationX - size / 2,
-
-            animationY - size / 2,
-
-            size,
-
-            size
-
-        );
+        return;
 
     }
 
+
+    // ========================================================
+    // DIBUJAR GRULLA
+    // ========================================================
+
+    ctx.drawImage(
+
+        gifVideo,
+
+        animationX -
+            size / 2,
+
+        animationY -
+            size / 2,
+
+        size,
+
+        size
+
+    );
+
 }
+
+
+// ============================================================
+// INICIAR TODO
+// ============================================================
+
+cargarFaceAPI();
